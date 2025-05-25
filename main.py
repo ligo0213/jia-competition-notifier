@@ -4,24 +4,27 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
-def send_messages(webhook_url, entries):
+def send_messages(webhook_url, site_entries_dict, bot_name="ASIBA Bot"):
     MAX_LEN = 1900
     messages = []
     current_msg = "**🆕 新着公募情報**\n\n"
 
-    for title, link in entries:
-        line = f"🔹 {title}\n{link}\n\n"
-        if len(current_msg) + len(line) > MAX_LEN:
-            messages.append(current_msg)
-            current_msg = "**🆕 新着公募情報 続き**\n\n"
-        current_msg += line
+    for site_name, entries in site_entries_dict.items():
+        current_msg += f"◇{site_name}\n"
+        for title, link in entries:
+            line = f"・{title}\n{link}\n"
+            if len(current_msg) + len(line) > MAX_LEN:
+                messages.append(current_msg)
+                current_msg = "**🆕 新着公募情報 続き**\n\n"
+            current_msg += line
+        current_msg += "\n"
 
     if current_msg.strip():
         messages.append(current_msg)
 
     success_all = True
     for idx, msg in enumerate(messages, 1):
-        res = requests.post(webhook_url, json={"content": msg})
+        res = requests.post(webhook_url, json={"content": msg, "username": bot_name})
         if res.status_code == 204:
             print(f"✅ Discord通知完了（メッセージ{idx}）")
         else:
@@ -126,39 +129,29 @@ def main():
         return
 
     df = pd.read_csv("sites_list.csv")
-    all_results = []
+    site_results = {}
+
     for _, row in df.iterrows():
-        print(f"📡 {row['サイト名']} の情報を取得中…")
+        site_name = row['サイト名']
         parser_type = row["パーサータイプ"]
         url = row["URL"]
 
         if parser_type == "jia_parser":
             results = jia_parser(url)
-            print(f"JIAパーサー取得件数: {len(results)}")
         elif parser_type == "mlit_parser":
             results = mlit_parser(url)
-            print(f"観光庁パーサー取得件数: {len(results)}")
-            for title, link in results:
-                print(f"  タイトル: {title}")
         elif parser_type == "mext_parser":
             results = mext_parser(url)
-            print(f"文科省パーサー取得件数: {len(results)}")
-            for title, link in results:
-                print(f"  タイトル: {title}")
         elif parser_type == "tokyo_kosha_parser":
             results = tokyo_kosha_parser(url)
-            print(f"東京都中小企業振興公社パーサー取得件数: {len(results)}")
-            for title, link in results:
-                print(f"  タイトル: {title}")
         elif parser_type == "generic":
             results = generic_parser(url, row["item_selector"], row["title_selector"], row["link_selector"])
-            print(f"汎用パーサー取得件数: {len(results)}")
         else:
             print(f"⚠️ 未知のパーサータイプ: {parser_type}")
             results = []
 
-        print(f"  → {len(results)} 件取得")
-        all_results.extend(results)
+        print(f"📡 {site_name} の情報を取得中… {len(results)} 件")
+        site_results[site_name] = site_results.get(site_name, []) + results
 
     posted_file = "posted.json"
     if os.path.exists(posted_file):
@@ -167,16 +160,23 @@ def main():
     else:
         posted_urls = set()
 
-    new_entries = [(t, l) for t, l in all_results if l not in posted_urls]
-    if not new_entries:
+    filtered_results = {}
+    for site_name, entries in site_results.items():
+        filtered = [(t, l) for t, l in entries if l not in posted_urls]
+        if filtered:
+            filtered_results[site_name] = filtered
+
+    if not filtered_results:
         print("ℹ️ 新しい情報はありません。")
         return
 
-    if send_messages(webhook_url, new_entries):
+    if send_messages(webhook_url, filtered_results, bot_name="ASIBA Bot"):
         print("Discord通知成功。posted.jsonを更新します。")
+        all_new_urls = [link for entries in filtered_results.values() for _, link in entries]
+        posted_urls.update(all_new_urls)
         try:
             with open(posted_file, "w", encoding="utf-8") as f:
-                json.dump(list(posted_urls.union([link for _, link in new_entries])), f, ensure_ascii=False, indent=2)
+                json.dump(list(posted_urls), f, ensure_ascii=False, indent=2)
             print("✅ posted.jsonを正常に更新しました。")
         except Exception as e:
             print(f"❌ posted.jsonの更新に失敗しました: {e}")
