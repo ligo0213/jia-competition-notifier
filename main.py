@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 
 def send_messages(webhook_url, entries):
-    MAX_LEN = 1900  # Discordの1メッセージ文字数制限より少し余裕を持つ
+    MAX_LEN = 1900
     messages = []
     current_msg = "**🆕 新着公募情報**\n\n"
 
@@ -19,12 +19,15 @@ def send_messages(webhook_url, entries):
     if current_msg.strip():
         messages.append(current_msg)
 
-    for msg in messages:
+    success_all = True
+    for idx, msg in enumerate(messages, 1):
         res = requests.post(webhook_url, json={"content": msg})
         if res.status_code == 204:
-            print("✅ Discord通知完了")
+            print(f"✅ Discord通知完了（メッセージ{idx}）")
         else:
-            print(f"⚠️ Discord通知失敗: {res.status_code}")
+            print(f"⚠️ Discord通知失敗（メッセージ{idx}）: {res.status_code}")
+            success_all = False
+    return success_all
 
 def jia_parser(url):
     res = requests.get(url)
