@@ -120,11 +120,16 @@ def main():
         print("ℹ️ 新しい情報はありません。")
         return
 
-    send_messages(webhook_url, new_entries)
-
-    posted_urls.update([link for _, link in new_entries])
-    with open(posted_file, "w", encoding="utf-8") as f:
-        json.dump(list(posted_urls), f, ensure_ascii=False, indent=2)
+    if send_messages(webhook_url, new_entries):
+        print("Discord通知成功。posted.jsonを更新します。")
+        try:
+            with open(posted_file, "w", encoding="utf-8") as f:
+                json.dump(list(posted_urls.union([link for _, link in new_entries])), f, ensure_ascii=False, indent=2)
+            print("✅ posted.jsonを正常に更新しました。")
+        except Exception as e:
+            print(f"❌ posted.jsonの更新に失敗しました: {e}")
+    else:
+        print("Discord通知失敗。posted.jsonの更新はスキップします。")
 
 if __name__ == "__main__":
     main()
