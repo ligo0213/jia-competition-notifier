@@ -124,6 +124,24 @@ def artscouncil_tokyo_parser(url):
             results.append((title, link))
     return results
 
+def tokyo_artscouncil_grant_parser(url):
+    res = requests.get(url)
+    res.encoding = res.apparent_encoding
+    soup = BeautifulSoup(res.text, "html.parser")
+    results = []
+
+    sections = soup.select("section.box_harf_02.box_harf_02--support")
+    for section in sections:
+        title_tag = section.select_one("h2")
+        link_tag = section.select_one("a[href]")
+        if title_tag and link_tag:
+            title = title_tag.get_text(strip=True)
+            link = link_tag["href"]
+            if not link.startswith("http"):
+                link = requests.compat.urljoin(url, link)
+            results.append((title, link))
+    return results
+
 def generic_parser(url, item_selector, title_selector, link_selector):
     res = requests.get(url)
     soup = BeautifulSoup(res.text, "html.parser")
@@ -164,6 +182,8 @@ def main():
             results = tokyo_kosha_parser(url)
         elif parser_type == "artscouncil_tokyo_parser":
             results = artscouncil_tokyo_parser(url)
+        elif parser_type == "tokyo_artscouncil_grant_parser":
+            results = tokyo_artscouncil_grant_parser(url)
         elif parser_type == "generic":
             results = generic_parser(url, row["item_selector"], row["title_selector"], row["link_selector"])
         else:
