@@ -114,16 +114,17 @@ def artscouncil_tokyo_parser(url):
 
     sections = soup.select("section.box_harf_02.box_harf_02--support")
     for section in sections:
-        status_tag = section.select_one("strong.status")
-        if status_tag and "公募終了" not in status_tag.text:
-            title_tag = section.select_one("h2")
-            link_tag = section.select_one("a[href]")
-            if title_tag and link_tag:
-                title = title_tag.get_text(strip=True)
-                link = link_tag["href"]
-                if not link.startswith("http"):
-                    link = requests.compat.urljoin(url, link)
-                results.append((title, link))
+        # 公募終了チェックを外すためコメントアウト
+        # status_tag = section.select_one("strong.status")
+        # if status_tag and "公募終了" not in status_tag.text:
+        title_tag = section.select_one("h2")
+        link_tag = section.select_one("a[href]")
+        if title_tag and link_tag:
+            title = title_tag.get_text(strip=True)
+            link = link_tag["href"]
+            if not link.startswith("http"):
+                link = requests.compat.urljoin(url, link)
+            results.append((title, link))
     return results
 
 def generic_parser(url, item_selector, title_selector, link_selector):
