@@ -2,7 +2,7 @@ name: Post JIA Competitions to Discord
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 毎日午前9時JST
+    - cron: '0 0 * * *'  # 毎日午前9時（JST）に実行（GitHubはUTCなので0時）
   workflow_dispatch:
 
 jobs:
@@ -17,6 +17,6 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install dependencies
-        run: pip install requests beautifulsoup4
-      - name: Run script
-        run: python post_to_discord.py
+        run: pip install requests beautifulsoup4 pandas
+      - name: Run main script
+        run: python main.py
