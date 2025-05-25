@@ -4,14 +4,27 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
-def send_discord_message(webhook_url, content):
-    res = requests.post(webhook_url, json={"content": content})
-    if res.status_code == 204:
-        print("✅ Discord通知完了")
-        return True
-    else:
-        print(f"⚠️ Discord通知失敗: {res.status_code}")
-        return False
+def send_messages(webhook_url, entries):
+    MAX_LEN = 1900  # Discordの1メッセージ文字数制限より少し余裕を持つ
+    messages = []
+    current_msg = "**🆕 新着公募情報**\n\n"
+
+    for title, link in entries:
+        line = f"🔹 {title}\n{link}\n\n"
+        if len(current_msg) + len(line) > MAX_LEN:
+            messages.append(current_msg)
+            current_msg = "**🆕 新着公募情報 続き**\n\n"
+        current_msg += line
+
+    if current_msg.strip():
+        messages.append(current_msg)
+
+    for msg in messages:
+        res = requests.post(webhook_url, json={"content": msg})
+        if res.status_code == 204:
+            print("✅ Discord通知完了")
+        else:
+            print(f"⚠️ Discord通知失敗: {res.status_code}")
 
 def jia_parser(url):
     res = requests.get(url)
@@ -107,14 +120,11 @@ def main():
         print("ℹ️ 新しい情報はありません。")
         return
 
-    message = "**🆕 新着公募情報**\n\n"
-    for title, link in new_entries:
-        message += f"🔹 {title}\n{link}\n\n"
+    send_messages(webhook_url, new_entries)
 
-    if send_discord_message(webhook_url, message):
-        posted_urls.update([link for _, link in new_entries])
-        with open(posted_file, "w", encoding="utf-8") as f:
-            json.dump(list(posted_urls), f, ensure_ascii=False, indent=2)
+    posted_urls.update([link for _, link in new_entries])
+    with open(posted_file, "w", encoding="utf-8") as f:
+        json.dump(list(posted_urls), f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
     main()
