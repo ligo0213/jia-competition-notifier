@@ -20,3 +20,4 @@ jobs:
         run: pip install requests beautifulsoup4 pandas
       - name: Run main script
         run: python main.py
+
