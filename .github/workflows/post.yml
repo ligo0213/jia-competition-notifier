@@ -2,14 +2,14 @@ name: Post JIA Competitions to Discord
 
 on:
   schedule:
-    - cron: '0 0 * * *' 
+    - cron: '0 0 * * *'  # 毎日午前9時（JST）に実行（GitHubはUTCなので0時）
   workflow_dispatch:
 
 jobs:
   post:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # リポジトリ書き込み権限を付与
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
     steps:
@@ -26,12 +26,10 @@ jobs:
       - name: Run main script
         run: python main.py
 
-      - name: Reset and force push posted.json
+      - name: Commit and push posted.json
         run: |
-          git fetch origin main
-          git reset --hard origin/main
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add posted.json
           git commit -m "Update posted.json [skip ci]" || echo "No changes to commit"
-          git push -f origin main
+          git push origin main
