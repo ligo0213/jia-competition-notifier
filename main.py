@@ -76,15 +76,22 @@ def main():
         print(f"📡 {row['サイト名']} の情報を取得中...")
         parser_type = row["パーサータイプ"]
         url = row["URL"]
+
         if parser_type == "jia_parser":
             results = jia_parser(url)
+            print(f"JIAパーサー取得件数: {len(results)}")
         elif parser_type == "mlit_parser":
             results = mlit_parser(url)
+            print(f"観光庁パーサー取得件数: {len(results)}")
+            for title, link in results:
+                print(f"  タイトル: {title}")
         elif parser_type == "generic":
             results = generic_parser(url, row["item_selector"], row["title_selector"], row["link_selector"])
+            print(f"汎用パーサー取得件数: {len(results)}")
         else:
             print(f"⚠️ 未知のパーサータイプ: {parser_type}")
             results = []
+
         print(f"  → {len(results)} 件取得")
         all_results.extend(results)
 
