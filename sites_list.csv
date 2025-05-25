@@ -1,3 +1,4 @@
 サイト名,URL,パーサータイプ,item_selector,title_selector,link_selector
 JIA,https://www.jia.or.jp/competition/,jia_parser,,,
 観光庁,https://www.mlit.go.jp/kankocho/kobo_2024_00002.html,mlit_parser,,,
+文部科学省,https://www.mext.go.jp/b_menu/boshu/index.htm,mext_parser,,,
