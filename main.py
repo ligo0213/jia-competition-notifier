@@ -64,6 +64,25 @@ def mlit_parser(url):
             results.append((title, link))
     return results
 
+def mext_parser(url):
+    res = requests.get(url)
+    res.encoding = res.apparent_encoding
+    soup = BeautifulSoup(res.text, "html.parser")
+    results = []
+
+    for dl in soup.find_all("dl"):
+        dt = dl.find("dt")
+        dd = dl.find("dd")
+        if dt and dd:
+            a = dd.find("a", href=True)
+            if a:
+                title = a.get_text(strip=True)
+                link = a['href']
+                if not link.startswith("http"):
+                    link = requests.compat.urljoin(url, link)
+                results.append((title, link))
+    return results
+
 def generic_parser(url, item_selector, title_selector, link_selector):
     res = requests.get(url)
     soup = BeautifulSoup(res.text, "html.parser")
@@ -89,7 +108,7 @@ def main():
     df = pd.read_csv("sites_list.csv")
     all_results = []
     for _, row in df.iterrows():
-        print(f"📡 {row['サイト名']} の情報を取得中...")
+        print(f"📡 {row['サイト名']} の情報を取得中…")
         parser_type = row["パーサータイプ"]
         url = row["URL"]
 
@@ -99,6 +118,11 @@ def main():
         elif parser_type == "mlit_parser":
             results = mlit_parser(url)
             print(f"観光庁パーサー取得件数: {len(results)}")
+            for title, link in results:
+                print(f"  タイトル: {title}")
+        elif parser_type == "mext_parser":
+            results = mext_parser(url)
+            print(f"文科省パーサー取得件数: {len(results)}")
             for title, link in results:
                 print(f"  タイトル: {title}")
         elif parser_type == "generic":
