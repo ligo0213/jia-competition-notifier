@@ -4,10 +4,10 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
-def send_messages(webhook_url, site_entries_dict, bot_name="ASIBA Bot"):
+def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
     MAX_LEN = 1900
     messages = []
-    current_msg = "**🆕 新着公募情報**\n\n"
+    current_msg = "**新着情報**\n\n"
 
     for site_name, entries in site_entries_dict.items():
         current_msg += f"◇{site_name}\n"
@@ -15,7 +15,7 @@ def send_messages(webhook_url, site_entries_dict, bot_name="ASIBA Bot"):
             line = f"・{title}\n{link}\n"
             if len(current_msg) + len(line) > MAX_LEN:
                 messages.append(current_msg)
-                current_msg = "**🆕 新着公募情報 続き**\n\n"
+                current_msg = ""  # 続きタイトルなし
             current_msg += line
         current_msg += "\n"
 
@@ -114,9 +114,6 @@ def artscouncil_tokyo_parser(url):
 
     sections = soup.select("section.box_harf_02.box_harf_02--support")
     for section in sections:
-        # 公募終了チェックを外すためコメントアウト
-        # status_tag = section.select_one("strong.status")
-        # if status_tag and "公募終了" not in status_tag.text:
         title_tag = section.select_one("h2")
         link_tag = section.select_one("a[href]")
         if title_tag and link_tag:
@@ -193,7 +190,7 @@ def main():
         print("ℹ️ 新しい情報はありません。")
         return
 
-    if send_messages(webhook_url, filtered_results, bot_name="ASIBA Bot"):
+    if send_messages(webhook_url, filtered_results, bot_name="公募情報"):
         print("Discord通知成功。posted.jsonを更新します。")
         all_new_urls = [link for entries in filtered_results.values() for _, link in entries]
         posted_urls.update(all_new_urls)
