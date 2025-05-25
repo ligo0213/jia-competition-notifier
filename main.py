@@ -83,6 +83,26 @@ def mext_parser(url):
                 results.append((title, link))
     return results
 
+def tokyo_kosha_parser(url):
+    res = requests.get(url)
+    res.encoding = res.apparent_encoding
+    soup = BeautifulSoup(res.text, "html.parser")
+    results = []
+
+    for a_tag in soup.select("a.bl_support_item"):
+        status_div = a_tag.find("div", class_="un_josei_status")
+        if status_div and "募集中" in status_div.text:
+            title_div = a_tag.find("div", class_="bl_support_item_ttl")
+            if title_div:
+                title = title_div.get_text(strip=True)
+            else:
+                title = "タイトル不明"
+            link = a_tag.get("href")
+            if link and not link.startswith("http"):
+                link = requests.compat.urljoin(url, link)
+            results.append((title, link))
+    return results
+
 def generic_parser(url, item_selector, title_selector, link_selector):
     res = requests.get(url)
     soup = BeautifulSoup(res.text, "html.parser")
@@ -123,6 +143,11 @@ def main():
         elif parser_type == "mext_parser":
             results = mext_parser(url)
             print(f"文科省パーサー取得件数: {len(results)}")
+            for title, link in results:
+                print(f"  タイトル: {title}")
+        elif parser_type == "tokyo_kosha_parser":
+            results = tokyo_kosha_parser(url)
+            print(f"東京都中小企業振興公社パーサー取得件数: {len(results)}")
             for title, link in results:
                 print(f"  タイトル: {title}")
         elif parser_type == "generic":
