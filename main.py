@@ -1,0 +1,113 @@
+import os
+import json
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+def send_discord_message(webhook_url, content):
+    res = requests.post(webhook_url, json={"content": content})
+    if res.status_code == 204:
+        print("✅ Discord通知完了")
+        return True
+    else:
+        print(f"⚠️ Discord通知失敗: {res.status_code}")
+        return False
+
+def jia_parser(url):
+    res = requests.get(url)
+    soup = BeautifulSoup(res.text, "html.parser")
+    results = []
+    for article in soup.find_all("article"):
+        a_tag = article.find("a", href=True)
+        h2_tag = article.find("h2")
+        if a_tag and h2_tag:
+            title = h2_tag.get_text(strip=True)
+            link = a_tag["href"]
+            if not link.startswith("http"):
+                link = requests.compat.urljoin(url, link)
+            results.append((title, link))
+    return results
+
+def mlit_parser(url):
+    res = requests.get(url)
+    res.encoding = res.apparent_encoding
+    soup = BeautifulSoup(res.text, "html.parser")
+    results = []
+    items = soup.select("ul.js-pullDownFilterContents li.js-pullDownFilterContentsItem")
+    for item in items:
+        status_span = item.select_one("span.st-news-list__tag")
+        if status_span and "募集中" in status_span.text:
+            link_tag = item.find("a", href=True)
+            if not link_tag:
+                continue
+            link = link_tag["href"]
+            if not link.startswith("http"):
+                link = requests.compat.urljoin(url, link)
+            title_p = item.select_one("p")
+            title = title_p.text.strip() if title_p else "タイトル不明"
+            results.append((title, link))
+    return results
+
+def generic_parser(url, item_selector, title_selector, link_selector):
+    res = requests.get(url)
+    soup = BeautifulSoup(res.text, "html.parser")
+    results = []
+    for item in soup.select(item_selector):
+        title_elem = item.select_one(title_selector)
+        link_elem = item.select_one(link_selector)
+        if not title_elem or not link_elem:
+            continue
+        title = title_elem.get_text(strip=True)
+        link = link_elem.get("href")
+        if link and not link.startswith("http"):
+            link = requests.compat.urljoin(url, link)
+        results.append((title, link))
+    return results
+
+def main():
+    webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+    if not webhook_url:
+        print("❗DISCORD_WEBHOOK_URLが環境変数に設定されていません。")
+        return
+
+    df = pd.read_csv("sites_list.csv")
+    all_results = []
+    for _, row in df.iterrows():
+        print(f"📡 {row['サイト名']} の情報を取得中...")
+        parser_type = row["パーサータイプ"]
+        url = row["URL"]
+        if parser_type == "jia_parser":
+            results = jia_parser(url)
+        elif parser_type == "mlit_parser":
+            results = mlit_parser(url)
+        elif parser_type == "generic":
+            results = generic_parser(url, row["item_selector"], row["title_selector"], row["link_selector"])
+        else:
+            print(f"⚠️ 未知のパーサータイプ: {parser_type}")
+            results = []
+        print(f"  → {len(results)} 件取得")
+        all_results.extend(results)
+
+    posted_file = "posted.json"
+    if os.path.exists(posted_file):
+        with open(posted_file, "r", encoding="utf-8") as f:
+            posted_urls = set(json.load(f))
+    else:
+        posted_urls = set()
+
+    new_entries = [(t, l) for t, l in all_results if l not in posted_urls]
+    if not new_entries:
+        print("ℹ️ 新しい情報はありません。")
+        return
+
+    message = "**🆕 新着公募情報**\n\n"
+    for title, link in new_entries:
+        message += f"🔹 {title}\n{link}\n\n"
+
+    if send_discord_message(webhook_url, message):
+        posted_urls.update([link for _, link in new_entries])
+        with open(posted_file, "w", encoding="utf-8") as f:
+            json.dump(list(posted_urls), f, ensure_ascii=False, indent=2)
+
+if __name__ == "__main__":
+    main()

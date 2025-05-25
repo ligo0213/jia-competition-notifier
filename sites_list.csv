@@ -1,0 +1,3 @@
+サイト名,URL,パーサータイプ,item_selector,title_selector,link_selector
+JIA,https://www.jia.or.jp/competition/,generic,article,h2,a
+観光庁,https://www.mlit.go.jp/kankocho/kobo_2024_00002.html,mlit,,,
