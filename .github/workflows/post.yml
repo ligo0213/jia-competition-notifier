@@ -9,7 +9,7 @@ jobs:
   post:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # ここで書き込み権限を明示的に付与
+      contents: write
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
     steps:
@@ -26,10 +26,14 @@ jobs:
       - name: Run main script
         run: python main.py
 
-      - name: Commit and push posted.json
+      - name: Sync with remote
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+
+      - name: Commit and push posted.json
+        run: |
           git add posted.json
           git commit -m "Update posted.json [skip ci]" || echo "No changes to commit"
           git push origin main
