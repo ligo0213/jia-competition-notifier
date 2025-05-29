@@ -35,7 +35,7 @@ def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
 
 def normalize_url(url):
     parsed = urlparse(url)
-    clean = parsed._replace(query="", fragment="")
+    clean = parsed._replace(fragment="", query="")
     return urlunparse(clean)
 
 def jia_parser(url):
@@ -215,7 +215,7 @@ def main():
     posted_file = "posted.json"
     if os.path.exists(posted_file):
         with open(posted_file, "r", encoding="utf-8") as f:
-            posted_urls = set(json.load(f))
+            posted_urls = set(normalize_url(u) for u in json.load(f))
     else:
         posted_urls = set()
 
