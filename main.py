@@ -249,9 +249,6 @@ def main():
             results = tokyo_artscouncil_grant_parser(url)
         elif parser_type == "canpan_parser":
             results = canpan_parser(url)
-            # canpan_parserはorg(実施団体)も返すのでsite_resultsに特別保存
-            # ここはタプルの形が異なるので分けて保持するか調整が必要
-            # まずは普通にappend
             site_results[site_name] = site_results.get(site_name, []) + [(t, l) for t, l, o in results]
             print(f"📡 {site_name} の情報を取得中… {len(results)} 件")
             continue
