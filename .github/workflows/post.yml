@@ -26,11 +26,6 @@ jobs:
       - name: Run main script
         run: python main.py
 
-      - name: Sync with remote
-        run: |
-          git fetch origin main
-          git reset --hard origin/main
-
       - name: Commit and push posted.json
         run: |
           git config user.name "github-actions[bot]"
