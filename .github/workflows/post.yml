@@ -9,7 +9,7 @@ jobs:
   post:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # リポジトリ書き込み権限を付与
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
     steps:
