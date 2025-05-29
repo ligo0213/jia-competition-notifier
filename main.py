@@ -221,6 +221,22 @@ def canpan_parser(url):
         print(f"⚠️ CANPANパーサー リクエストエラー: {e}")
         return []
 
+def generic_parser(url, item_selector, title_selector, link_selector):
+    res = requests.get(url)
+    soup = BeautifulSoup(res.text, "html.parser")
+    results = []
+    for item in soup.select(item_selector):
+        title_elem = item.select_one(title_selector)
+        link_elem = item.select_one(link_selector)
+        if not title_elem or not link_elem:
+            continue
+        title = title_elem.get_text(strip=True)
+        link = link_elem.get("href")
+        if link and not link.startswith("http"):
+            link = requests.compat.urljoin(url, link)
+        results.append((title, link))
+    return results
+
 def main():
     webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
     if not webhook_url:
