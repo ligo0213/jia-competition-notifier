@@ -3,6 +3,7 @@ import json
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+from urllib.parse import urlparse, urlunparse
 
 def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
     MAX_LEN = 1900
@@ -31,6 +32,11 @@ def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
             print(f"⚠️ Discord通知失敗（メッセージ{idx}）: {res.status_code}")
             success_all = False
     return success_all
+
+def normalize_url(url):
+    parsed = urlparse(url)
+    clean = parsed._replace(query="", fragment="")
+    return urlunparse(clean)
 
 def jia_parser(url):
     res = requests.get(url)
@@ -142,20 +148,25 @@ def tokyo_artscouncil_grant_parser(url):
             results.append((title, link))
     return results
 
-def generic_parser(url, item_selector, title_selector, link_selector):
+def canpan_parser(url):
     res = requests.get(url)
+    res.encoding = res.apparent_encoding
     soup = BeautifulSoup(res.text, "html.parser")
     results = []
-    for item in soup.select(item_selector):
-        title_elem = item.select_one(title_selector)
-        link_elem = item.select_one(link_selector)
-        if not title_elem or not link_elem:
-            continue
-        title = title_elem.get_text(strip=True)
-        link = link_elem.get("href")
-        if link and not link.startswith("http"):
-            link = requests.compat.urljoin(url, link)
-        results.append((title, link))
+
+    rows = soup.select("table tbody tr")
+    for row in rows:
+        title_tag = row.select_one("h3 a")
+        org_tag = row.select_one("dd p a")
+        status_tag = row.select_one("p.status")
+
+        if status_tag and "募集中" in status_tag.text:
+            title = title_tag.get_text(strip=True) if title_tag else "タイトル不明"
+            org = org_tag.get_text(strip=True) if org_tag else "実施団体不明"
+            link = title_tag["href"] if title_tag else None
+            if link and not link.startswith("http"):
+                link = requests.compat.urljoin(url, link)
+            results.append((title, link, org))
     return results
 
 def main():
@@ -184,6 +195,14 @@ def main():
             results = artscouncil_tokyo_parser(url)
         elif parser_type == "tokyo_artscouncil_grant_parser":
             results = tokyo_artscouncil_grant_parser(url)
+        elif parser_type == "canpan_parser":
+            results = canpan_parser(url)
+            # canpan_parserはorg(実施団体)も返すのでsite_resultsに特別保存
+            # ここはタプルの形が異なるので分けて保持するか調整が必要
+            # まずは普通にappend
+            site_results[site_name] = site_results.get(site_name, []) + [(t, l) for t, l, o in results]
+            print(f"📡 {site_name} の情報を取得中… {len(results)} 件")
+            continue
         elif parser_type == "generic":
             results = generic_parser(url, row["item_selector"], row["title_selector"], row["link_selector"])
         else:
@@ -202,7 +221,7 @@ def main():
 
     filtered_results = {}
     for site_name, entries in site_results.items():
-        filtered = [(t, l) for t, l in entries if l not in posted_urls]
+        filtered = [(t, l) for t, l in entries if normalize_url(l) not in posted_urls]
         if filtered:
             filtered_results[site_name] = filtered
 
@@ -212,7 +231,7 @@ def main():
 
     if send_messages(webhook_url, filtered_results, bot_name="公募情報"):
         print("Discord通知成功。posted.jsonを更新します。")
-        all_new_urls = [link for entries in filtered_results.values() for _, link in entries]
+        all_new_urls = [normalize_url(link) for entries in filtered_results.values() for _, link in entries]
         posted_urls.update(all_new_urls)
         try:
             with open(posted_file, "w", encoding="utf-8") as f:
