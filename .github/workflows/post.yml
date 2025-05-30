@@ -1,19 +1,18 @@
-name: Post JIA Competitions to Discord
+name: Post Competitions to Discord
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 毎日午前9時（JST）に実行（GitHubはUTCなので0時）
+    - cron: '0 0 * * *'  # JST 9:00 に相当（GitHub ActionsはUTC）
   workflow_dispatch:
 
 jobs:
   post:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # リポジトリ書き込み権限を付与
-    env:
-      DISCORD_WEBHOOK_URL: https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD
+      contents: write
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -30,6 +29,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
           git add posted.json
           git commit -m "Update posted.json [skip ci]" || echo "No changes to commit"
-          git push origin main
+          git push origin main || echo "Push failed (likely no new data)"
