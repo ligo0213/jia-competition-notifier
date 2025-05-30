@@ -6,7 +6,7 @@ import pandas as pd
 from urllib.parse import urlparse, urlunparse
 import sys
 
-webhook_url = "https://discord.com/api/webhooks/..."  # 必ずあなたの実URLに置き換えてください
+webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD" 
 
 def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
     MAX_LEN = 1900
