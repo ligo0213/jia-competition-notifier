@@ -70,10 +70,7 @@ def main():
     parser.add_argument("--test", help="特定のサイト名だけ処理")
     args = parser.parse_args()
 
-    webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
-    if not webhook_url:
-        print("❗環境変数 DISCORD_WEBHOOK_URL が設定されていません")
-        return
+    webhook_url = https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD
 
     df = pd.read_csv("sites_list.csv")
     if args.test:
