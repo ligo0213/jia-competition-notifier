@@ -113,7 +113,7 @@ def main():
     if len(sys.argv) > 2 and sys.argv[1] == "--test":
         test_target = sys.argv[2]
 
-    df = pd.read_csv("sites_list.csv")
+    df = pd.read_csv("sites_list.csv").fillna("")
     site_results = {}
 
     for _, row in df.iterrows():
