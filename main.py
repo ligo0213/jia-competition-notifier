@@ -62,7 +62,6 @@ def jia_parser(url):
     session = requests_retry_session()
     try:
         res = session.get(url)
-        res.encoding = res.apparent_encoding
         soup = BeautifulSoup(res.text, "html.parser")
         results = []
         for article in soup.find_all("article"):
@@ -79,35 +78,6 @@ def jia_parser(url):
         print(f"⚠️ JIAパーサー リクエストエラー: {e}")
         return []
 
-def generic_parser(url, item_selector, title_selector, link_selector, status_selector=None, status_text=None):
-    session = requests_retry_session()
-    try:
-        res = session.get(url)
-        res.encoding = res.apparent_encoding
-        soup = BeautifulSoup(res.text, "html.parser")
-        results = []
-        items = soup.select(item_selector)
-        if not items:
-            print(f"⚠️ item_selector '{item_selector}' に一致する要素が見つかりませんでした。")
-        for item in items:
-            if status_selector and status_text:
-                status_elem = item.select_one(status_selector)
-                if not status_elem or status_text not in status_elem.get_text():
-                    continue
-            title_elem = item.select_one(title_selector)
-            link_elem = item.select_one(link_selector)
-            if not title_elem or not link_elem:
-                continue
-            title = title_elem.get_text(strip=True).encode('utf-8', errors='replace').decode('utf-8')
-            link = link_elem.get("href")
-            if link and not link.startswith("http"):
-                link = requests.compat.urljoin(url, link)
-            results.append((title, link))
-        return results
-    except Exception as e:
-        print(f"⚠️ generic_parser リクエストエラー: {e}")
-        return []
-
 def mext_parser(url):
     session = requests_retry_session()
     try:
@@ -115,8 +85,6 @@ def mext_parser(url):
         res.encoding = res.apparent_encoding
         soup = BeautifulSoup(res.text, "html.parser")
         results = []
-
-        # 「科学技術・学術関連事業」のセクションを探す
         for h3 in soup.find_all("h3"):
             if "科学技術・学術関連事業" in h3.get_text():
                 next_dl = h3.find_next_sibling("dl")
@@ -132,6 +100,35 @@ def mext_parser(url):
         return results
     except Exception as e:
         print(f"⚠️ 文科省パーサー リクエストエラー: {e}")
+        return []
+
+def generic_parser(url, item_selector, title_selector, link_selector, status_selector=None, status_text=None):
+    session = requests_retry_session()
+    try:
+        res = session.get(url)
+        res.encoding = res.apparent_encoding
+        soup = BeautifulSoup(res.text, "html.parser")
+        results = []
+        items = soup.select(item_selector)
+        if not items:
+            print(f"⚠️ item_selector '{item_selector}' が一致しませんでした")
+        for item in items:
+            if status_selector and status_text:
+                status_elem = item.select_one(status_selector)
+                if not status_elem or status_text not in status_elem.get_text():
+                    continue
+            title_elem = item.select_one(title_selector)
+            link_elem = item.select_one(link_selector)
+            if not title_elem or not link_elem:
+                continue
+            title = title_elem.get_text(strip=True).encode("utf-8", errors="replace").decode("utf-8")
+            link = link_elem.get("href")
+            if link and not link.startswith("http"):
+                link = requests.compat.urljoin(url, link)
+            results.append((title, link))
+        return results
+    except Exception as e:
+        print(f"⚠️ generic_parser リクエストエラー: {e}")
         return []
 
 def main():
@@ -154,6 +151,8 @@ def main():
 
         if parser_type == "jia_parser":
             results = jia_parser(url)
+        elif parser_type == "mext_parser":
+            results = mext_parser(url)
         elif parser_type == "generic":
             results = generic_parser(
                 url,
@@ -169,10 +168,6 @@ def main():
 
         print(f"  → {len(results)} 件取得")
         site_results[site_name] = results
-
-    if not site_results:
-        print("ℹ️ 新しい情報はありません")
-        return
 
     posted_file = "posted.json"
     if os.path.exists(posted_file):
