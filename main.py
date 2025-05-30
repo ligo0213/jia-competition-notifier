@@ -92,14 +92,16 @@ def main():
         name, url, parser_type = row["サイト名"], row["URL"], row["パーサータイプ"]
         print(f"📡 {name} の情報を取得中…")
 
-        if parser_type == "generic":
+        if parser_type == "jia_parser":
+            results = jia_parser(url)
+        elif parser_type == "generic":
             results = generic_parser(
                 url,
-                row.get("item_selector", ""),
-                row.get("title_selector", ""),
-                row.get("link_selector", ""),
-                row.get("status_selector", None),
-                row.get("status_text", None)
+                row["item_selector"],
+                row["title_selector"],
+                row["link_selector"],
+                row.get("status_selector"),
+                row.get("status_text")
             )
         else:
             print(f"⚠️ 未知のパーサータイプ: {parser_type}")
