@@ -78,35 +78,6 @@ def jia_parser(url):
         print(f"⚠️ JIAパーサー リクエストエラー: {e}")
         return []
 
-def mext_parser(url):
-    session = requests_retry_session()
-    try:
-        res = session.get(url)
-        res.encoding = res.apparent_encoding
-        soup = BeautifulSoup(res.text, "html.parser")
-        results = []
-
-        found = False
-        for tag in soup.find_all(["h3", "dl"]):
-            if tag.name == "h3":
-                if "科学技術" in tag.get_text(strip=True):
-                    found = True
-                else:
-                    if found:
-                        break  # 別のセクションに入ったので終了
-            elif tag.name == "dl" and found:
-                a_tags = tag.select("dd a[href]")
-                for a in a_tags:
-                    title = a.get_text(strip=True)
-                    link = a["href"]
-                    if not link.startswith("http"):
-                        link = requests.compat.urljoin(url, link)
-                    results.append((title, link))
-        return results
-    except Exception as e:
-        print(f"⚠️ 文科省パーサー リクエストエラー: {e}")
-        return []
-
 def generic_parser(url, item_selector, title_selector, link_selector, status_selector=None, status_text=None):
     session = requests_retry_session()
     try:
