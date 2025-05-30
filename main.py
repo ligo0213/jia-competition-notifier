@@ -1,3 +1,5 @@
+# main.py（強化版 + Webhookハードコード）
+
 import os
 import json
 import requests
@@ -68,6 +70,7 @@ def main():
     parser.add_argument("--test", help="特定のサイト名だけ処理")
     args = parser.parse_args()
 
+    # 🔐 Webhook URL をハードコード
     webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD"
 
     df = pd.read_csv("sites_list.csv")
