@@ -1,5 +1,3 @@
-# main.py（強化版）
-
 import os
 import json
 import requests
