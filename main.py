@@ -1,17 +1,13 @@
-# main.py（強化版 + Webhookハードコード）
-
-import os
 import json
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from urllib.parse import urlparse, urlunparse
-import argparse
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+import sys
 
-def normalize_url(url):
-    parsed = urlparse(url)
-    clean = parsed._replace(fragment="", query="")
-    return urlunparse(clean)
+webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD"
 
 def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
     MAX_LEN = 1900
@@ -31,66 +27,103 @@ def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
     if current_msg.strip():
         messages.append(current_msg)
 
-    success = True
-    for i, msg in enumerate(messages, 1):
+    success_all = True
+    for idx, msg in enumerate(messages, 1):
         res = requests.post(webhook_url, json={"content": msg, "username": bot_name})
         if res.status_code == 204:
-            print(f"✅ Discord通知完了（{i}）")
+            print(f"✅ Discord通知完了（メッセージ{idx}）")
         else:
-            print(f"⚠️ Discord通知失敗（{i}）: {res.status_code}")
-            success = False
-    return success
+            print(f"⚠️ Discord通知失敗（メッセージ{idx}）: {res.status_code}")
+            success_all = False
+    return success_all
 
-def generic_parser(url, item_sel, title_sel, link_sel, status_sel=None, status_text=None):
-    res = requests.get(url)
-    res.encoding = res.apparent_encoding
-    soup = BeautifulSoup(res.text, "html.parser")
-    results = []
-    items = soup.select(item_sel)
-    if not items:
-        print(f"⚠️ item_selector '{item_sel}' が一致しません")
-    for item in items:
-        if status_sel and status_text:
-            status = item.select_one(status_sel)
-            if not status or status_text not in status.get_text():
+def normalize_url(url):
+    parsed = urlparse(url)
+    clean = parsed._replace(fragment="", query="")
+    return urlunparse(clean)
+
+def requests_retry_session(retries=3, backoff_factor=0.5, status_forcelist=(500, 502, 504)):
+    session = requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('https://', adapter)
+    session.mount('http://', adapter)
+    return session
+
+def jia_parser(url):
+    session = requests_retry_session()
+    try:
+        res = session.get(url)
+        res.encoding = res.apparent_encoding
+        soup = BeautifulSoup(res.text, "html.parser")
+        results = []
+        for article in soup.find_all("article"):
+            a_tag = article.find("a", href=True)
+            h2_tag = article.find("h2")
+            if a_tag and h2_tag:
+                title = h2_tag.get_text(strip=True)
+                link = a_tag["href"]
+                if not link.startswith("http"):
+                    link = requests.compat.urljoin(url, link)
+                results.append((title, link))
+        return results
+    except Exception as e:
+        print(f"⚠️ JIAパーサー リクエストエラー: {e}")
+        return []
+
+def generic_parser(url, item_selector, title_selector, link_selector, status_selector=None, status_text=None):
+    session = requests_retry_session()
+    try:
+        res = session.get(url)
+        res.encoding = res.apparent_encoding
+        soup = BeautifulSoup(res.text, "html.parser")
+        results = []
+        items = soup.select(item_selector)
+        if not items:
+            print(f"⚠️ item_selector '{item_selector}' に一致する要素が見つかりませんでした。")
+        for item in items:
+            if status_selector and status_text:
+                status_elem = item.select_one(status_selector)
+                if not status_elem or status_text not in status_elem.get_text():
+                    continue
+            title_elem = item.select_one(title_selector)
+            link_elem = item.select_one(link_selector)
+            if not title_elem or not link_elem:
                 continue
-        title_elem = item.select_one(title_sel)
-        link_elem = item.select_one(link_sel)
-        if not title_elem or not link_elem:
-            continue
-        title = title_elem.get_text(strip=True).encode('utf-8', errors='replace').decode('utf-8')
-        link = link_elem.get("href")
-        if link and not link.startswith("http"):
-            link = requests.compat.urljoin(url, link)
-        results.append((title, link))
-    return results
+            title = title_elem.get_text(strip=True).encode('utf-8', errors='replace').decode('utf-8')
+            link = link_elem.get("href")
+            if link and not link.startswith("http"):
+                link = requests.compat.urljoin(url, link)
+            results.append((title, link))
+        return results
+    except Exception as e:
+        print(f"⚠️ generic_parser リクエストエラー: {e}")
+        return []
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--test", help="特定のサイト名だけ処理")
-    args = parser.parse_args()
-
-    # 🔐 Webhook URL をハードコード
-    webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD"
+    test_target = None
+    if len(sys.argv) > 2 and sys.argv[1] == "--test":
+        test_target = sys.argv[2]
 
     df = pd.read_csv("sites_list.csv")
-    if args.test:
-        df = df[df["サイト名"] == args.test]
-        if df.empty:
-            print(f"❗サイト '{args.test}' が見つかりません")
-            return
+    site_results = {}
 
-    posted_file = "posted.json"
-    if os.path.exists(posted_file):
-        with open(posted_file, "r", encoding="utf-8") as f:
-            posted_urls = set(normalize_url(u) for u in json.load(f))
-    else:
-        posted_urls = set()
-
-    all_new = {}
     for _, row in df.iterrows():
-        name, url, parser_type = row["サイト名"], row["URL"], row["パーサータイプ"]
-        print(f"📡 {name} の情報を取得中…")
+        site_name = row["サイト名"]
+        parser_type = row["パーサータイプ"]
+        url = row["URL"]
+
+        if test_target and site_name != test_target:
+            continue
+
+        print(f"📡 {site_name} の情報を取得中…")
 
         if parser_type == "jia_parser":
             results = jia_parser(url)
@@ -107,24 +140,42 @@ def main():
             print(f"⚠️ 未知のパーサータイプ: {parser_type}")
             results = []
 
-        filtered = [(t, l) for t, l in results if normalize_url(l) not in posted_urls]
-        print(f"  → {len(filtered)} 件取得")
-        if filtered:
-            all_new[name] = filtered
+        print(f"  → {len(results)} 件取得")
+        site_results[site_name] = results
 
-    if not all_new:
+    if not site_results:
         print("ℹ️ 新しい情報はありません")
         return
 
-    if send_messages(webhook_url, all_new):
-        print("✅ Discord通知成功。posted.jsonを更新します")
-        new_links = [normalize_url(l) for entries in all_new.values() for _, l in entries]
-        posted_urls.update(new_links)
-        with open(posted_file, "w", encoding="utf-8") as f:
-            json.dump(list(posted_urls), f, ensure_ascii=False, indent=2)
-        print("✅ posted.json更新完了")
+    posted_file = "posted.json"
+    if os.path.exists(posted_file):
+        with open(posted_file, "r", encoding="utf-8") as f:
+            posted_urls = set(normalize_url(u) for u in json.load(f))
     else:
-        print("❌ Discord通知失敗。posted.jsonは更新されません")
+        posted_urls = set()
+
+    filtered_results = {}
+    for site_name, entries in site_results.items():
+        filtered = [(t, l) for t, l in entries if normalize_url(l) not in posted_urls]
+        if filtered:
+            filtered_results[site_name] = filtered
+
+    if not filtered_results:
+        print("ℹ️ 新しい情報はありません。")
+        return
+
+    if send_messages(webhook_url, filtered_results):
+        print("Discord通知成功。posted.jsonを更新します。")
+        all_new_urls = [normalize_url(link) for entries in filtered_results.values() for _, link in entries]
+        posted_urls.update(all_new_urls)
+        try:
+            with open(posted_file, "w", encoding="utf-8") as f:
+                json.dump(list(posted_urls), f, ensure_ascii=False, indent=2)
+            print("✅ posted.jsonを正常に更新しました。")
+        except Exception as e:
+            print(f"❌ posted.jsonの更新に失敗しました: {e}")
+    else:
+        print("Discord通知失敗。posted.jsonの更新はスキップします。")
 
 if __name__ == "__main__":
     main()
