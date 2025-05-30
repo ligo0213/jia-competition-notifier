@@ -2,6 +2,6 @@
 JIA,https://www.jia.or.jp/competition/,jia_parser,,,,,
 観光庁,https://www.mlit.go.jp/kankocho/kobo_2024_00002.html,generic,ul.js-pullDownFilterContents li.js-pullDownFilterContentsItem,p,a,span.st-news-list__tag,募集中
 文部科学省,https://www.mext.go.jp/b_menu/boshu/index.htm,generic,dl,dd a,dd a,,
-東京都中小企業振興公社,https://www.tokyo-kosha.or.jp/support/josei/index.html,generic,a.bl_support_item,div.bl_support_item_ttl,a,,
+東京都中小企業振興公社,https://www.tokyo-kosha.or.jp/support/josei/index.html,generic,section.bl_block a,div.bl_support_item_ttl,a,,
 アーツカウンシル東京（スタートアップ助成）,https://www.artscouncil-tokyo.jp/ja/what-we-do/support/grants/startup-grant-program/,generic,section.box_harf_02.box_harf_02--support,h2,a,,
 アーツカウンシル東京（文化創造発信助成）,https://www.artscouncil-tokyo.jp/ja/what-we-do/support/grants/tokyo-grant-program/,generic,section.box_harf_02.box_harf_02--support,h2,a,,
