@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write  # リポジトリ書き込み権限を付与
     env:
-      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      DISCORD_WEBHOOK_URL: https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD
     steps:
       - uses: actions/checkout@v3
 
