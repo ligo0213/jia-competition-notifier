@@ -86,19 +86,22 @@ def mext_parser(url):
         soup = BeautifulSoup(res.text, "html.parser")
         results = []
 
-        for h3 in soup.find_all("h3"):
-            title = h3.get_text(strip=True)
-            if "科学技術" in title:
-                next_dl = h3.find_next("dl")  # find_next_sibling → find_next に変更
-                if next_dl:
-                    a_tags = next_dl.select("dd a[href]")
-                    for a in a_tags:
-                        title = a.get_text(strip=True)
-                        link = a["href"]
-                        if not link.startswith("http"):
-                            link = requests.compat.urljoin(url, link)
-                        results.append((title, link))
-                break
+        found = False
+        for tag in soup.find_all(["h3", "dl"]):
+            if tag.name == "h3":
+                if "科学技術" in tag.get_text(strip=True):
+                    found = True
+                else:
+                    if found:
+                        break  # 別のセクションに入ったので終了
+            elif tag.name == "dl" and found:
+                a_tags = tag.select("dd a[href]")
+                for a in a_tags:
+                    title = a.get_text(strip=True)
+                    link = a["href"]
+                    if not link.startswith("http"):
+                        link = requests.compat.urljoin(url, link)
+                    results.append((title, link))
         return results
     except Exception as e:
         print(f"⚠️ 文科省パーサー リクエストエラー: {e}")
