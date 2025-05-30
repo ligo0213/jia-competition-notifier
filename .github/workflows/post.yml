@@ -1,9 +1,15 @@
 name: Post Competitions to Discord
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # JST 9:00 に相当（GitHub ActionsはUTC）
   workflow_dispatch:
+    inputs:
+      test_site:
+        description: 'テスト対象のサイト名（空なら全サイト）'
+        required: false
+        default: ''
+
+  schedule:
+    - cron: '0 0 * * *'  # 毎日JST 9:00
 
 jobs:
   post:
@@ -11,8 +17,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -23,7 +28,14 @@ jobs:
         run: pip install requests beautifulsoup4 pandas
 
       - name: Run main script
-        run: python main.py
+        run: |
+          if [ "${{ github.event.inputs.test_site }}" != "" ]; then
+            echo "▶ テストモード: ${{ github.event.inputs.test_site }}"
+            python main.py --test "${{ github.event.inputs.test_site }}"
+          else
+            echo "▶ 通常モード"
+            python main.py
+          fi
 
       - name: Commit and push posted.json
         run: |
@@ -32,4 +44,4 @@ jobs:
           git pull --rebase origin main || true
           git add posted.json
           git commit -m "Update posted.json [skip ci]" || echo "No changes to commit"
-          git push origin main || echo "Push failed (likely no new data)"
+          git push origin main || echo "Push failed"
