@@ -4,12 +4,9 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from urllib.parse import urlparse, urlunparse
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 import sys
 
-# Discord Webhook（ハードコード済み）
-webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD"
+webhook_url = "https://discord.com/api/webhooks/..."  # 必ずあなたの実URLに置き換えてください
 
 def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
     MAX_LEN = 1900
@@ -44,60 +41,10 @@ def normalize_url(url):
     clean = parsed._replace(fragment="", query="")
     return urlunparse(clean)
 
-def requests_retry_session(retries=3, backoff_factor=0.5, status_forcelist=(500, 502, 504)):
-    session = requests.Session()
-    retry = Retry(total=retries, read=retries, connect=retries, backoff_factor=backoff_factor,
-                  status_forcelist=status_forcelist, raise_on_status=False)
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount('https://', adapter)
-    session.mount('http://', adapter)
-    return session
-
-def jia_parser(url):
-    session = requests_retry_session()
-    try:
-        res = session.get(url)
-        soup = BeautifulSoup(res.text, "html.parser")
-        results = []
-        for article in soup.find_all("article"):
-            a_tag = article.find("a", href=True)
-            h2_tag = article.find("h2")
-            if a_tag and h2_tag:
-                title = h2_tag.get_text(strip=True)
-                link = a_tag["href"]
-                if not link.startswith("http"):
-                    link = requests.compat.urljoin(url, link)
-                results.append((title, link))
-        return results
-    except Exception as e:
-        print(f"⚠️ JIAパーサー リクエストエラー: {e}")
-        return []
-
-def tokyo_kosha_parser(url):
-    session = requests_retry_session()
-    try:
-        res = session.get(url)
-        soup = BeautifulSoup(res.text, "html.parser")
-        results = []
-        cards = soup.select("a.bl_card_link")
-        if not cards:
-            print("⚠️ a.bl_card_link が見つかりませんでした")
-        for a in cards:
-            title_tag = a.select_one("div.bl_card_title")
-            title = title_tag.get_text(strip=True) if title_tag else "タイトル不明"
-            link = a.get("href")
-            if link and not link.startswith("http"):
-                link = requests.compat.urljoin(url, link)
-            results.append((title, link))
-        return results
-    except Exception as e:
-        print(f"⚠️ 公社パーサー リクエストエラー: {e}")
-        return []
-
 def generic_parser(url, item_selector, title_selector, link_selector, status_selector=None, status_text=None):
-    session = requests_retry_session()
     try:
-        res = session.get(url)
+        res = requests.get(url)
+        res.encoding = res.apparent_encoding
         soup = BeautifulSoup(res.text, "html.parser")
         results = []
         items = soup.select(item_selector)
@@ -140,11 +87,7 @@ def main():
 
         print(f"📡 {site_name} の情報を取得中…")
 
-        if parser_type == "jia_parser":
-            results = jia_parser(url)
-        elif parser_type == "tokyo_kosha_parser":
-            results = tokyo_kosha_parser(url)
-        elif parser_type == "generic":
+        if parser_type == "generic":
             results = generic_parser(
                 url,
                 row["item_selector"],
