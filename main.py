@@ -85,9 +85,11 @@ def mext_parser(url):
         res.encoding = res.apparent_encoding
         soup = BeautifulSoup(res.text, "html.parser")
         results = []
+
         for h3 in soup.find_all("h3"):
-            if "科学技術・学術関連事業" in h3.get_text():
-                next_dl = h3.find_next_sibling("dl")
+            title = h3.get_text(strip=True)
+            if "科学技術" in title:
+                next_dl = h3.find_next("dl")  # find_next_sibling → find_next に変更
                 if next_dl:
                     a_tags = next_dl.select("dd a[href]")
                     for a in a_tags:
