@@ -108,6 +108,32 @@ def generic_parser(url, item_selector, title_selector, link_selector, status_sel
         print(f"⚠️ generic_parser リクエストエラー: {e}")
         return []
 
+def mext_parser(url):
+    session = requests_retry_session()
+    try:
+        res = session.get(url)
+        res.encoding = res.apparent_encoding
+        soup = BeautifulSoup(res.text, "html.parser")
+        results = []
+
+        # 「科学技術・学術関連事業」のセクションを探す
+        for h3 in soup.find_all("h3"):
+            if "科学技術・学術関連事業" in h3.get_text():
+                next_dl = h3.find_next_sibling("dl")
+                if next_dl:
+                    a_tags = next_dl.select("dd a[href]")
+                    for a in a_tags:
+                        title = a.get_text(strip=True)
+                        link = a["href"]
+                        if not link.startswith("http"):
+                            link = requests.compat.urljoin(url, link)
+                        results.append((title, link))
+                break
+        return results
+    except Exception as e:
+        print(f"⚠️ 文科省パーサー リクエストエラー: {e}")
+        return []
+
 def main():
     test_target = None
     if len(sys.argv) > 2 and sys.argv[1] == "--test":
