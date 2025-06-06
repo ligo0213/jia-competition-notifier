@@ -223,11 +223,7 @@ def canpan_parser(url):
         print(f"⚠️ CANPANパーサー リクエストエラー: {e}")
         return []
 
-def main():
-    webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
-    if not webhook_url:
-        print("❗DISCORD_WEBHOOK_URLが環境変数に設定されていません。")
-        return
+webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD"  # あなたの本物のURLをここに
 
     df = pd.read_csv("sites_list.csv")
     site_results = {}
