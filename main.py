@@ -1,4 +1,4 @@
-import osMore actions
+import os
 import json
 import requests
 from bs4 import BeautifulSoup
@@ -6,6 +6,8 @@ import pandas as pd
 from urllib.parse import urlparse, urlunparse
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import sys
+
 
 def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
     MAX_LEN = 1900
