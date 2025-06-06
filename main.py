@@ -8,6 +8,8 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 import sys
 
+# ✅ Discord Webhook を直接埋め込み
+webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD"
 
 def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
     MAX_LEN = 1900
@@ -20,7 +22,7 @@ def send_messages(webhook_url, site_entries_dict, bot_name="公募情報"):
             line = f"・{title}\n{link}\n"
             if len(current_msg) + len(line) > MAX_LEN:
                 messages.append(current_msg)
-                current_msg = ""  # 続きタイトルなし
+                current_msg = ""
             current_msg += line
         current_msg += "\n"
 
@@ -57,6 +59,8 @@ def requests_retry_session(retries=3, backoff_factor=0.5, status_forcelist=(500,
     session.mount('http://', adapter)
     return session
 
+# ✅ 専用パーサー定義（必要に応じて追加）
+
 def jia_parser(url):
     session = requests_retry_session()
     try:
@@ -81,7 +85,6 @@ def mlit_parser(url):
     session = requests_retry_session()
     try:
         res = session.get(url)
-        res.encoding = res.apparent_encoding
         soup = BeautifulSoup(res.text, "html.parser")
         results = []
         items = soup.select("ul.js-pullDownFilterContents li.js-pullDownFilterContentsItem")
@@ -89,13 +92,11 @@ def mlit_parser(url):
             status_span = item.select_one("span.st-news-list__tag")
             if status_span and "募集中" in status_span.text:
                 link_tag = item.find("a", href=True)
-                if not link_tag:
-                    continue
-                link = link_tag["href"]
-                if not link.startswith("http"):
+                title_tag = item.select_one("p")
+                title = title_tag.text.strip() if title_tag else "タイトル不明"
+                link = link_tag["href"] if link_tag else None
+                if link and not link.startswith("http"):
                     link = requests.compat.urljoin(url, link)
-                title_p = item.select_one("p")
-                title = title_p.text.strip() if title_p else "タイトル不明"
                 results.append((title, link))
         return results
     except Exception as e:
@@ -106,21 +107,17 @@ def mext_parser(url):
     session = requests_retry_session()
     try:
         res = session.get(url)
-        res.encoding = res.apparent_encoding
         soup = BeautifulSoup(res.text, "html.parser")
         results = []
-
         for dl in soup.find_all("dl"):
-            dt = dl.find("dt")
             dd = dl.find("dd")
-            if dt and dd:
-                a = dd.find("a", href=True)
-                if a:
-                    title = a.get_text(strip=True)
-                    link = a['href']
-                    if not link.startswith("http"):
-                        link = requests.compat.urljoin(url, link)
-                    results.append((title, link))
+            a = dd.find("a", href=True) if dd else None
+            if a:
+                title = a.get_text(strip=True)
+                link = a["href"]
+                if not link.startswith("http"):
+                    link = requests.compat.urljoin(url, link)
+                results.append((title, link))
         return results
     except Exception as e:
         print(f"⚠️ 文科省パーサー リクエストエラー: {e}")
@@ -130,18 +127,13 @@ def tokyo_kosha_parser(url):
     session = requests_retry_session()
     try:
         res = session.get(url)
-        res.encoding = res.apparent_encoding
         soup = BeautifulSoup(res.text, "html.parser")
         results = []
-
         for a_tag in soup.select("a.bl_support_item"):
             status_div = a_tag.find("div", class_="un_josei_status")
             if status_div and "募集中" in status_div.text:
                 title_div = a_tag.find("div", class_="bl_support_item_ttl")
-                if title_div:
-                    title = title_div.get_text(strip=True)
-                else:
-                    title = "タイトル不明"
+                title = title_div.get_text(strip=True) if title_div else "タイトル不明"
                 link = a_tag.get("href")
                 if link and not link.startswith("http"):
                     link = requests.compat.urljoin(url, link)
@@ -151,14 +143,12 @@ def tokyo_kosha_parser(url):
         print(f"⚠️ 東京都中小企業振興公社パーサー リクエストエラー: {e}")
         return []
 
-def artscouncil_tokyo_parser(url):
+def tokyo_artscouncil_grant_parser(url):
     session = requests_retry_session()
     try:
         res = session.get(url)
-        res.encoding = res.apparent_encoding
         soup = BeautifulSoup(res.text, "html.parser")
         results = []
-
         sections = soup.select("section.box_harf_02.box_harf_02--support")
         for section in sections:
             title_tag = section.select_one("h2")
@@ -174,64 +164,25 @@ def artscouncil_tokyo_parser(url):
         print(f"⚠️ アーツカウンシル東京パーサー リクエストエラー: {e}")
         return []
 
-def tokyo_artscouncil_grant_parser(url):
-    session = requests_retry_session()
-    try:
-        res = session.get(url)
-        res.encoding = res.apparent_encoding
-        soup = BeautifulSoup(res.text, "html.parser")
-        results = []
+# ✅ メイン関数
 
-        sections = soup.select("section.box_harf_02.box_harf_02--support")
-        for section in sections:
-            title_tag = section.select_one("h2")
-            link_tag = section.select_one("a[href]")
-            if title_tag and link_tag:
-                title = title_tag.get_text(strip=True)
-                link = link_tag["href"]
-                if not link.startswith("http"):
-                    link = requests.compat.urljoin(url, link)
-                results.append((title, link))
-        return results
-    except Exception as e:
-        print(f"⚠️ 東京アーツカウンシル助成パーサー リクエストエラー: {e}")
-        return []
-
-def canpan_parser(url):
-    session = requests_retry_session()
-    try:
-        res = session.get(url)
-        res.encoding = res.apparent_encoding
-        soup = BeautifulSoup(res.text, "html.parser")
-        results = []
-
-        rows = soup.select("table tbody tr")
-        for row in rows:
-            title_tag = row.select_one("h3 a")
-            org_tag = row.select_one("dd p a")
-            status_tag = row.select_one("p.status")
-
-            if status_tag and "募集中" in status_tag.text:
-                title = title_tag.get_text(strip=True) if title_tag else "タイトル不明"
-                org = org_tag.get_text(strip=True) if org_tag else "実施団体不明"
-                link = title_tag["href"] if title_tag else None
-                if link and not link.startswith("http"):
-                    link = requests.compat.urljoin(url, link)
-                results.append((title, link, org))
-        return results
-    except Exception as e:
-        print(f"⚠️ CANPANパーサー リクエストエラー: {e}")
-        return []
-
-webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9EqJKBg0Z2dgFvvDXYE6F5oAnxYXnre0EeVxWBpfGpsnX8wXnAWWIUULD"  # あなたの本物のURLをここに
+def main():
+    test_target = None
+    if len(sys.argv) > 2 and sys.argv[1] == "--test":
+        test_target = sys.argv[2]
 
     df = pd.read_csv("sites_list.csv")
     site_results = {}
 
     for _, row in df.iterrows():
-        site_name = row['サイト名']
+        site_name = row["サイト名"]
         parser_type = row["パーサータイプ"]
         url = row["URL"]
+
+        if test_target and site_name != test_target:
+            continue
+
+        print(f"📡 {site_name} の情報を取得中…")
 
         if parser_type == "jia_parser":
             results = jia_parser(url)
@@ -241,26 +192,14 @@ webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9
             results = mext_parser(url)
         elif parser_type == "tokyo_kosha_parser":
             results = tokyo_kosha_parser(url)
-        elif parser_type == "artscouncil_tokyo_parser":
-            results = artscouncil_tokyo_parser(url)
         elif parser_type == "tokyo_artscouncil_grant_parser":
             results = tokyo_artscouncil_grant_parser(url)
-        elif parser_type == "canpan_parser":
-            results = canpan_parser(url)
-            # canpan_parserはorg(実施団体)も返すのでsite_resultsに特別保存
-            # ここはタプルの形が異なるので分けて保持するか調整が必要
-            # まずは普通にappend
-            site_results[site_name] = site_results.get(site_name, []) + [(t, l) for t, l, o in results]
-            print(f"📡 {site_name} の情報を取得中… {len(results)} 件")
-            continue
-        elif parser_type == "generic":
-            results = generic_parser(url, row["item_selector"], row["title_selector"], row["link_selector"])
         else:
             print(f"⚠️ 未知のパーサータイプ: {parser_type}")
             results = []
 
-        print(f"📡 {site_name} の情報を取得中… {len(results)} 件")
-        site_results[site_name] = site_results.get(site_name, []) + results
+        print(f"  → {len(results)} 件取得")
+        site_results[site_name] = results
 
     posted_file = "posted.json"
     if os.path.exists(posted_file):
@@ -279,7 +218,7 @@ webhook_url = "https://discord.com/api/webhooks/1375852715107811368/MoMpF5sA5GJ9
         print("ℹ️ 新しい情報はありません。")
         return
 
-    if send_messages(webhook_url, filtered_results, bot_name="公募情報"):
+    if send_messages(webhook_url, filtered_results):
         print("Discord通知成功。posted.jsonを更新します。")
         all_new_urls = [normalize_url(link) for entries in filtered_results.values() for _, link in entries]
         posted_urls.update(all_new_urls)
